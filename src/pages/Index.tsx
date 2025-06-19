@@ -8,8 +8,20 @@ import { ScreenshotUpload } from '@/components/ScreenshotUpload';
 import { URLInput } from '@/components/URLInput';
 import { IssueDescription } from '@/components/IssueDescription';
 import { AuditPreview } from '@/components/AuditPreview';
-import { FileText, Image, Globe, Eye } from 'lucide-react';
+import { ReportsList } from '@/components/ReportsList';
+import { FileText, Image, Globe, Eye, List } from 'lucide-react';
 import { toast } from 'sonner';
+
+interface Report {
+  id: string;
+  url: string;
+  description: string;
+  severity: string;
+  category: string;
+  createdAt: Date;
+  screenshot?: string;
+  annotatedImage?: string;
+}
 
 const Index = () => {
   const [screenshot, setScreenshot] = useState<File | null>(null);
@@ -19,6 +31,8 @@ const Index = () => {
   const [severity, setSeverity] = useState('');
   const [category, setCategory] = useState('');
   const [activeTab, setActiveTab] = useState('url');
+  const [reports, setReports] = useState<Report[]>([]);
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
   const handleScreenshotChange = (file: File | null) => {
     setScreenshot(file);
@@ -51,6 +65,25 @@ const Index = () => {
     }
   };
 
+  const handleSaveReport = () => {
+    if (url && issueDescription && severity && category) {
+      const newReport: Report = {
+        id: Date.now().toString(),
+        url,
+        description: issueDescription,
+        severity,
+        category,
+        createdAt: new Date(),
+        screenshot: screenshot ? URL.createObjectURL(screenshot) : undefined,
+        annotatedImage: annotatedImage || undefined,
+      };
+      
+      setReports(prev => [newReport, ...prev]);
+      toast.success('Report saved successfully!');
+      resetForm();
+    }
+  };
+
   const resetForm = () => {
     setScreenshot(null);
     setAnnotatedImage(null);
@@ -59,7 +92,13 @@ const Index = () => {
     setSeverity('');
     setCategory('');
     setActiveTab('url');
+    setSelectedReport(null);
     toast.success('Form reset! Start a new audit report.');
+  };
+
+  const handleViewReport = (report: Report) => {
+    setSelectedReport(report);
+    setActiveTab('preview');
   };
 
   return (
@@ -78,15 +117,15 @@ const Index = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-6 w-6" />
-              Create Audit Report
+              Audit Report Manager
             </CardTitle>
             <CardDescription>
-              Follow the steps below to create a comprehensive audit report
+              Create new reports or view existing ones organized by category
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="url" className="flex items-center gap-2">
                   <Globe className="h-4 w-4" />
                   URL
@@ -102,6 +141,10 @@ const Index = () => {
                 <TabsTrigger value="description" className="flex items-center gap-2" disabled={!annotatedImage && !screenshot}>
                   <FileText className="h-4 w-4" />
                   Description
+                </TabsTrigger>
+                <TabsTrigger value="reports" className="flex items-center gap-2">
+                  <List className="h-4 w-4" />
+                  All Reports
                 </TabsTrigger>
               </TabsList>
 
@@ -195,33 +238,61 @@ const Index = () => {
                 </Card>
               </TabsContent>
 
+              <TabsContent value="reports" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <List className="h-6 w-6" />
+                      All Reports
+                    </CardTitle>
+                    <CardDescription>
+                      View and manage all your audit reports organized by category
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ReportsList 
+                      reports={reports}
+                      onViewReport={handleViewReport}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
               <TabsContent value="preview" className="mt-6">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Eye className="h-6 w-6" />
-                      Audit Report Preview
+                      {selectedReport ? 'Report Details' : 'Audit Report Preview'}
                     </CardTitle>
                     <CardDescription>
-                      Review your complete audit report
+                      {selectedReport ? 'Viewing saved report details' : 'Review your complete audit report'}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <AuditPreview 
-                      url={url}
-                      screenshot={screenshot}
-                      annotatedImage={annotatedImage}
-                      description={issueDescription}
-                      severity={severity}
-                      category={category}
+                      url={selectedReport?.url || url}
+                      screenshot={selectedReport ? undefined : screenshot}
+                      annotatedImage={selectedReport?.annotatedImage || annotatedImage}
+                      description={selectedReport?.description || issueDescription}
+                      severity={selectedReport?.severity || severity}
+                      category={selectedReport?.category || category}
                     />
                     <div className="mt-6 flex gap-4">
-                      <Button onClick={resetForm} variant="outline">
-                        Create New Report
-                      </Button>
-                      <Button onClick={() => toast.success('Report exported successfully!')}>
-                        Export Report
-                      </Button>
+                      {selectedReport ? (
+                        <Button onClick={() => setActiveTab('reports')} variant="outline">
+                          Back to Reports
+                        </Button>
+                      ) : (
+                        <>
+                          <Button onClick={resetForm} variant="outline">
+                            Create New Report
+                          </Button>
+                          <Button onClick={handleSaveReport}>
+                            Save Report
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
