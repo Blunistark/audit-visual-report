@@ -1,0 +1,195 @@
+
+import { useEffect, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Canvas as FabricCanvas, Rect, PencilBrush } from 'fabric';
+import { Square, Pen, Eraser, Download, RotateCcw } from 'lucide-react';
+import { toast } from 'sonner';
+
+interface AnnotationCanvasProps {
+  screenshot: File | null;
+  onAnnotatedImage: (dataUrl: string) => void;
+}
+
+export const AnnotationCanvas = ({ screenshot, onAnnotatedImage }: AnnotationCanvasProps) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
+  const [activeTool, setActiveTool] = useState<'select' | 'rectangle' | 'draw' | 'eraser'>('select');
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!canvasRef.current || !screenshot) return;
+
+    const canvas = new FabricCanvas(canvasRef.current, {
+      width: 800,
+      height: 600,
+      backgroundColor: '#ffffff',
+    });
+
+    setFabricCanvas(canvas);
+
+    // Load the screenshot as background
+    const img = new Image();
+    img.onload = () => {
+      const aspectRatio = img.width / img.height;
+      let newWidth = 800;
+      let newHeight = 600;
+
+      if (aspectRatio > 800 / 600) {
+        newHeight = 800 / aspectRatio;
+      } else {
+        newWidth = 600 * aspectRatio;
+      }
+
+      canvas.setDimensions({ width: newWidth, height: newHeight });
+      canvas.setBackgroundImage(img.src, canvas.renderAll.bind(canvas), {
+        scaleX: newWidth / img.width,
+        scaleY: newHeight / img.height,
+      });
+      setIsImageLoaded(true);
+      toast.success('Image loaded! Start annotating.');
+    };
+    img.src = URL.createObjectURL(screenshot);
+
+    return () => {
+      canvas.dispose();
+    };
+  }, [screenshot]);
+
+  useEffect(() => {
+    if (!fabricCanvas) return;
+
+    fabricCanvas.isDrawingMode = activeTool === 'draw';
+    
+    if (activeTool === 'draw') {
+      const brush = new PencilBrush(fabricCanvas);
+      brush.color = '#ef4444';
+      brush.width = 3;
+      fabricCanvas.freeDrawingBrush = brush;
+    }
+  }, [activeTool, fabricCanvas]);
+
+  const handleToolClick = (tool: typeof activeTool) => {
+    setActiveTool(tool);
+
+    if (tool === 'rectangle' && fabricCanvas) {
+      const rect = new Rect({
+        left: 100,
+        top: 100,
+        fill: 'transparent',
+        stroke: '#ef4444',
+        strokeWidth: 3,
+        width: 150,
+        height: 100,
+      });
+      fabricCanvas.add(rect);
+      fabricCanvas.setActiveObject(rect);
+    }
+  };
+
+  const handleClear = () => {
+    if (!fabricCanvas) return;
+    
+    const objects = fabricCanvas.getObjects();
+    objects.forEach(obj => {
+      if (obj !== fabricCanvas.backgroundImage) {
+        fabricCanvas.remove(obj);
+      }
+    });
+    fabricCanvas.renderAll();
+    toast.success('Annotations cleared!');
+  };
+
+  const handleSave = () => {
+    if (!fabricCanvas) return;
+    
+    const dataUrl = fabricCanvas.toDataURL({
+      format: 'png',
+      quality: 1,
+    });
+    onAnnotatedImage(dataUrl);
+    toast.success('Annotations saved!');
+  };
+
+  if (!screenshot) {
+    return (
+      <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+        <div className="text-gray-500">
+          <Square className="h-12 w-12 mx-auto mb-2 opacity-50" />
+          <p>Upload a screenshot to start annotating</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2">
+          <Button
+            onClick={() => handleToolClick('select')}
+            variant={activeTool === 'select' ? 'default' : 'outline'}
+            size="sm"
+          >
+            Select
+          </Button>
+          <Button
+            onClick={() => handleToolClick('rectangle')}
+            variant={activeTool === 'rectangle' ? 'default' : 'outline'}
+            size="sm"
+            className="flex items-center gap-1"
+          >
+            <Square className="h-4 w-4" />
+            Rectangle
+          </Button>
+          <Button
+            onClick={() => handleToolClick('draw')}
+            variant={activeTool === 'draw' ? 'default' : 'outline'}
+            size="sm"
+            className="flex items-center gap-1"
+          >
+            <Pen className="h-4 w-4" />
+            Draw
+          </Button>
+        </div>
+        
+        <div className="flex gap-2">
+          <Button
+            onClick={handleClear}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-1"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Clear
+          </Button>
+          <Button
+            onClick={handleSave}
+            size="sm"
+            className="flex items-center gap-1"
+          >
+            <Download className="h-4 w-4" />
+            Save
+          </Button>
+        </div>
+      </div>
+
+      <div className="border rounded-lg p-4 bg-gray-50">
+        <canvas
+          ref={canvasRef}
+          className="border border-gray-200 rounded shadow-sm bg-white max-w-full"
+        />
+      </div>
+
+      {isImageLoaded && (
+        <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+          <strong>Instructions:</strong>
+          <ul className="mt-1 space-y-1">
+            <li>• Use <strong>Rectangle</strong> to highlight specific areas</li>
+            <li>• Use <strong>Draw</strong> to freehand annotate</li>
+            <li>• Click <strong>Save</strong> to include annotations in your report</li>
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+};
