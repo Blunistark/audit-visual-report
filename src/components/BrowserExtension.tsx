@@ -28,23 +28,73 @@ export const BrowserExtension = ({ onScreenshotSelect }: BrowserExtensionProps) 
   const [screenshots, setScreenshots] = useState<Screenshot[]>([]);
   const [isExtensionInstalled, setIsExtensionInstalled] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
-
   useEffect(() => {
     checkExtensionInstallation();
     fetchRecentScreenshots();
     
+    // Listen for extension announcements
+    const handleExtensionAnnounce = (event: MessageEvent) => {
+      if (event.data.type === 'WEB_AUDIT_EXTENSION_ANNOUNCE' && event.data.installed) {
+        console.log('Extension announced its presence');
+        setIsExtensionInstalled(true);
+      }
+    };
+    
+    window.addEventListener('message', handleExtensionAnnounce);
+    
     // Poll for new screenshots every 5 seconds when needed
     if (isPolling) {
       const interval = setInterval(fetchRecentScreenshots, 5000);
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('message', handleExtensionAnnounce);
+      };
     }
-  }, [isPolling]);
+    
+    return () => {
+      window.removeEventListener('message', handleExtensionAnnounce);
+    };
+  }, [isPolling]);  const checkExtensionInstallation = () => {
+    console.log('Checking for extension installation...');
+    
+    // Method 1: Check for injected marker element
+    const extensionMarker = document.querySelector('[data-web-audit-extension]');
+    console.log('Extension marker found:', !!extensionMarker);
+    if (extensionMarker) {
+      console.log('Extension detected via marker element');
+      setIsExtensionInstalled(true);
+      return;
+    }
 
-  const checkExtensionInstallation = () => {
-    // Check if the extension is installed by looking for a specific element it might inject
-    // This is a simple check - in reality, you'd implement a more robust method
-    const extensionCheck = document.querySelector('[data-web-audit-extension]');
-    setIsExtensionInstalled(!!extensionCheck);
+    // Method 2: Try to communicate with content script
+    let responseReceived = false;
+    
+    const messageHandler = (event: MessageEvent) => {
+      console.log('Received message during detection:', event.data);
+      if (event.data.type === 'WEB_AUDIT_EXTENSION_RESPONSE' && event.data.installed) {
+        console.log('Extension detected via message response');
+        responseReceived = true;
+        setIsExtensionInstalled(true);
+        window.removeEventListener('message', messageHandler);
+      }
+    };
+
+    window.addEventListener('message', messageHandler);
+    
+    // Send detection message
+    console.log('Sending extension detection message');
+    window.postMessage({
+      type: 'WEB_AUDIT_EXTENSION_CHECK'
+    }, '*');
+
+    // If no response in 1 second, assume extension is not installed
+    setTimeout(() => {
+      if (!responseReceived) {
+        console.log('No extension response received, assuming not installed');
+        setIsExtensionInstalled(false);
+        window.removeEventListener('message', messageHandler);
+      }
+    }, 1000);
   };
   const fetchRecentScreenshots = async () => {
     try {
@@ -80,11 +130,21 @@ export const BrowserExtension = ({ onScreenshotSelect }: BrowserExtensionProps) 
     setTimeout(() => {
       setIsPolling(false);
     }, 5 * 60 * 1000);
-  };
-
-  const downloadExtension = () => {
-    // In a real implementation, this would open the Chrome Web Store
-    toast.info('Extension installation guide will be shown here.');
+  };  const downloadExtension = () => {
+    // Show installation instructions
+    toast.info('Opening extension installation guide...', {
+      duration: 2000
+    });
+    
+    // Open installation instructions in a new tab
+    setTimeout(() => {
+      const instructionsUrl = window.location.origin + '/extension-install.html';
+      window.open(instructionsUrl, '_blank');
+      
+      toast.success('Installation guide opened! Follow the steps then click "Check Again".', {
+        duration: 5000
+      });
+    }, 500);
   };
 
   return (
@@ -106,11 +166,17 @@ export const BrowserExtension = ({ onScreenshotSelect }: BrowserExtensionProps) 
             <p className="text-sm text-gray-600 mb-4">
               Install our browser extension to capture screenshots directly from any website, 
               including those requiring login credentials.
-            </p>
-            <div className="space-y-3">
+            </p>            <div className="space-y-3">
               <Button onClick={downloadExtension} className="w-full">
                 <Download className="h-4 w-4 mr-2" />
                 Install Browser Extension
+              </Button>
+              <Button 
+                onClick={checkExtensionInstallation} 
+                variant="outline" 
+                className="w-full"
+              >
+                🔄 Check Again
               </Button>
               <div className="text-xs text-gray-500">
                 <p>Extension features:</p>
@@ -144,48 +210,53 @@ export const BrowserExtension = ({ onScreenshotSelect }: BrowserExtensionProps) 
 
             {screenshots.length > 0 && (
               <div className="space-y-3">
-                <h4 className="font-medium text-sm">Recent Screenshots</h4>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {screenshots.map((screenshot, index) => (
-                    <div key={index} className="border rounded-lg p-3 hover:bg-gray-50">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Globe className="h-3 w-3 text-gray-400 flex-shrink-0" />
-                            <span className="text-xs text-gray-600 truncate">
-                              {new URL(screenshot.metadata.sourceUrl).hostname}
-                            </span>
-                            {screenshot.metadata.area && (
-                              <Badge variant="secondary" className="text-xs">
-                                {screenshot.metadata.area.width}×{screenshot.metadata.area.height}
-                              </Badge>
-                            )}
+                <h4 className="font-medium text-sm">Recent Screenshots</h4>                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {screenshots.map((screenshot, index) => {
+                    // Safety check for screenshot structure
+                    if (!screenshot.metadata || !screenshot.metadata.sourceUrl) {
+                      console.warn('Invalid screenshot structure:', screenshot);
+                      return null;
+                    }
+                    
+                    return (
+                      <div key={index} className="border rounded-lg p-3 hover:bg-gray-50">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Globe className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                              <span className="text-xs text-gray-600 truncate">
+                                {new URL(screenshot.metadata.sourceUrl).hostname}
+                              </span>
+                              {screenshot.metadata.area && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {screenshot.metadata.area.width}×{screenshot.metadata.area.height}
+                                </Badge>
+                              )}                            </div>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <Clock className="h-3 w-3" />
+                              {new Date(screenshot.metadata.timestamp).toLocaleTimeString()}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 text-xs text-gray-500">
-                            <Clock className="h-3 w-3" />
-                            {new Date(screenshot.metadata.timestamp).toLocaleTimeString()}
-                          </div>
-                        </div>
-                        <div className="flex gap-1 ml-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => window.open(screenshot.url, '_blank')}
-                            className="h-7 px-2"
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleScreenshotSelect(screenshot)}
-                            className="h-7 px-2"
-                          >
-                            Use
-                          </Button>
-                        </div>
+                          <div className="flex gap-1 ml-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => window.open(screenshot.url, '_blank')}
+                              className="h-7 px-2"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleScreenshotSelect(screenshot)}
+                              className="h-7 px-2"
+                            >
+                              Use
+                            </Button>
+                          </div></div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

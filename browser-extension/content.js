@@ -1,6 +1,43 @@
 // Content script for Web Audit Screenshot Tool
 // This script runs on all web pages and provides capture functionality
 
+console.log('Web Audit Extension: Content script loaded on', window.location.href);
+
+// Inject a marker element to indicate extension is installed
+const marker = document.createElement('div');
+marker.setAttribute('data-web-audit-extension', 'installed');
+marker.setAttribute('data-extension-version', '1.0.0');
+marker.style.display = 'none';
+document.head.appendChild(marker);
+
+console.log('Web Audit Extension: Marker element injected');
+
+// Listen for extension detection messages from the audit tool
+window.addEventListener('message', (event) => {
+    console.log('Web Audit Extension: Received message', event.data);
+    if (event.data.type === 'WEB_AUDIT_EXTENSION_CHECK') {
+        console.log('Web Audit Extension: Responding to detection check');
+        // Respond that extension is installed
+        window.postMessage({
+            type: 'WEB_AUDIT_EXTENSION_RESPONSE',
+            installed: true,
+            version: '1.0.0'
+        }, '*');
+    }
+});
+
+// Also immediately announce presence if this is the audit tool page
+if (window.location.href.includes('localhost:8080')) {
+    console.log('Web Audit Extension: On audit tool page, announcing presence');
+    setTimeout(() => {
+        window.postMessage({
+            type: 'WEB_AUDIT_EXTENSION_ANNOUNCE',
+            installed: true,
+            version: '1.0.0'
+        }, '*');
+    }, 1000);
+}
+
 // Listen for messages from the popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'initializeCapture') {

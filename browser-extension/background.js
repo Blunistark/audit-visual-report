@@ -147,39 +147,69 @@ async function sendToAuditTool(blob, url, area) {
             apiUrl = urlObj.toString().replace(/\/$/, ''); // Remove trailing slash
         } catch (urlError) {
             // Fallback if URL parsing fails
-            apiUrl = auditToolUrl.replace(/:\d+/, ':8081').replace(/\/$/, '');
-        }
+            apiUrl = auditToolUrl.replace(/:\d+/, ':8081').replace(/\/$/, '');        }
         
         console.log('Sending screenshot to API:', `${apiUrl}/api/screenshot`);
-        const response = await fetch(`${apiUrl}/api/screenshot`, {
-            method: 'POST',
-            body: formData
-        });        if (response.ok) {
-            const responseData = await response.json();
-            console.log('Screenshot uploaded successfully:', responseData);
+        console.log('Extension updated to use port 8081');
+        
+        try {
+            const response = await fetch(`${apiUrl}/api/screenshot`, {
+                method: 'POST',
+                body: formData
+            });
+
+            console.log('API Response status:', response.status);
             
-            // Open audit tool in new tab with screenshot parameter
-            const auditUrl = new URL(auditToolUrl);
-            auditUrl.searchParams.set('screenshot', responseData.filename);
-            auditUrl.searchParams.set('sourceUrl', encodeURIComponent(url));
-            chrome.tabs.create({ url: auditUrl.toString() });
-            
-            try {
-                chrome.notifications.create({
-                    type: 'basic',
-                    iconUrl: 'icons/icon48.png',
-                    title: 'Screenshot Captured',
-                    message: 'Screenshot sent to audit tool successfully!'
-                });
-            } catch (notificationError) {
-                console.error('Failed to show success notification:', notificationError);
+            if (response.ok) {
+                const responseData = await response.json();
+                console.log('Screenshot uploaded successfully:', responseData);
+                
+                // Open audit tool in new tab with screenshot parameter
+                const auditUrl = new URL(auditToolUrl);
+                auditUrl.searchParams.set('screenshot', responseData.screenshot.filename);
+                auditUrl.searchParams.set('sourceUrl', encodeURIComponent(url));
+                chrome.tabs.create({ url: auditUrl.toString() });
+                
+                try {
+                    chrome.notifications.create({
+                        type: 'basic',
+                        iconUrl: 'icons/icon48.png',
+                        title: 'Screenshot Captured',
+                        message: 'Screenshot uploaded and opened in audit tool!'
+                    });
+                } catch (notificationError) {
+                    console.error('Failed to show success notification:', notificationError);
+                }
+                return; // Exit successfully
+            } else {
+                const errorText = await response.text();
+                console.error('API Error:', response.status, errorText);
+                throw new Error(`API returned ${response.status}: ${errorText}`);
             }
-        } else {
-            const errorText = await response.text();
-            console.error('API Error:', response.status, errorText);
-            throw new Error(`Failed to send screenshot to audit tool: ${response.status} - ${errorText}`);
+        } catch (fetchError) {
+            console.error('Network/Fetch Error:', fetchError);
+            throw new Error(`Failed to connect to API server: ${fetchError.message}`);
         }    } catch (error) {
         console.error('Failed to send to audit tool:', error);
+        
+        // Show specific error notification
+        let errorMessage = 'Failed to upload screenshot';
+        if (error.message.includes('Failed to connect')) {
+            errorMessage = 'Cannot connect to API server. Is it running on port 8081?';
+        } else if (error.message.includes('API returned')) {
+            errorMessage = 'API server error. Check console for details.';
+        }
+        
+        try {
+            chrome.notifications.create({
+                type: 'basic',
+                iconUrl: 'icons/icon48.png',
+                title: 'Upload Failed',
+                message: errorMessage + ' Saving to downloads instead.'
+            });
+        } catch (notificationError) {
+            console.error('Failed to show error notification:', notificationError);
+        }
         
         // Fallback: Save to downloads using Data URL instead of Object URL
         try {

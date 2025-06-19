@@ -119,8 +119,20 @@ app.post('/api/screenshot', upload.single('screenshot'), (req, res) => {
 // Get recent screenshots
 app.get('/api/screenshots', (req, res) => {
     const screenshots = app.locals.screenshots || [];
+    
+    // Transform screenshots to match frontend interface
+    const transformedScreenshots = screenshots.slice(-10).map(screenshot => ({
+        filename: screenshot.filename,
+        url: `/uploads/${screenshot.filename}`, // File URL for accessing the image
+        metadata: {
+            sourceUrl: screenshot.url,          // Original page URL
+            area: screenshot.area,
+            timestamp: screenshot.timestamp
+        }
+    }));
+    
     res.json({
-        screenshots: screenshots.slice(-10) // Return last 10 screenshots
+        screenshots: transformedScreenshots
     });
 });
 
