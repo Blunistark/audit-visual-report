@@ -1,7 +1,6 @@
-
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Canvas as FabricCanvas, Rect } from 'fabric';
+import { Canvas as FabricCanvas, Rect, FabricImage } from 'fabric';
 import { Square, Pen, Eraser, Download, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -45,12 +44,20 @@ export const AnnotationCanvas = ({ screenshot, onAnnotatedImage }: AnnotationCan
       }
 
       canvas.setDimensions({ width: newWidth, height: newHeight });
-      canvas.setBackgroundImage(img.src, canvas.renderAll.bind(canvas), {
-        scaleX: newWidth / img.width,
-        scaleY: newHeight / img.height,
+      
+      // Use FabricImage.fromURL for v6
+      FabricImage.fromURL(img.src).then((fabricImg) => {
+        fabricImg.set({
+          scaleX: newWidth / img.width,
+          scaleY: newHeight / img.height,
+          selectable: false,
+          evented: false,
+        });
+        canvas.backgroundImage = fabricImg;
+        canvas.renderAll();
+        setIsImageLoaded(true);
+        toast.success('Image loaded! Start annotating.');
       });
-      setIsImageLoaded(true);
-      toast.success('Image loaded! Start annotating.');
     };
     img.src = URL.createObjectURL(screenshot);
 
@@ -107,6 +114,7 @@ export const AnnotationCanvas = ({ screenshot, onAnnotatedImage }: AnnotationCan
     const dataUrl = fabricCanvas.toDataURL({
       format: 'png',
       quality: 1,
+      multiplier: 1,
     });
     onAnnotatedImage(dataUrl);
     toast.success('Annotations saved!');
