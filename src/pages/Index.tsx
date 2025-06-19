@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,19 +8,9 @@ import { URLInput } from '@/components/URLInput';
 import { IssueDescription } from '@/components/IssueDescription';
 import { AuditPreview } from '@/components/AuditPreview';
 import { ReportsList } from '@/components/ReportsList';
+import { useReports } from '@/hooks/useReports';
 import { FileText, Image, Globe, Eye, List } from 'lucide-react';
 import { toast } from 'sonner';
-
-interface Report {
-  id: string;
-  url: string;
-  description: string;
-  severity: string;
-  category: string;
-  createdAt: Date;
-  screenshot?: string;
-  annotatedImage?: string;
-}
 
 const Index = () => {
   const [screenshot, setScreenshot] = useState<File | null>(null);
@@ -31,8 +20,9 @@ const Index = () => {
   const [severity, setSeverity] = useState('');
   const [category, setCategory] = useState('');
   const [activeTab, setActiveTab] = useState('url');
-  const [reports, setReports] = useState<Report[]>([]);
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [selectedReport, setSelectedReport] = useState<any>(null);
+
+  const { reports, loading, saveReport } = useReports();
 
   const handleScreenshotChange = (file: File | null) => {
     setScreenshot(file);
@@ -65,22 +55,20 @@ const Index = () => {
     }
   };
 
-  const handleSaveReport = () => {
+  const handleSaveReport = async () => {
     if (url && issueDescription && severity && category) {
-      const newReport: Report = {
-        id: Date.now().toString(),
+      const success = await saveReport({
         url,
         description: issueDescription,
         severity,
         category,
-        createdAt: new Date(),
-        screenshot: screenshot ? URL.createObjectURL(screenshot) : undefined,
-        annotatedImage: annotatedImage || undefined,
-      };
+        screenshot,
+        annotatedImage,
+      });
       
-      setReports(prev => [newReport, ...prev]);
-      toast.success('Report saved successfully!');
-      resetForm();
+      if (success) {
+        resetForm();
+      }
     }
   };
 
@@ -96,7 +84,7 @@ const Index = () => {
     toast.success('Form reset! Start a new audit report.');
   };
 
-  const handleViewReport = (report: Report) => {
+  const handleViewReport = (report: any) => {
     setSelectedReport(report);
     setActiveTab('preview');
   };
@@ -250,10 +238,14 @@ const Index = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ReportsList 
-                      reports={reports}
-                      onViewReport={handleViewReport}
-                    />
+                    {loading ? (
+                      <div className="text-center py-8">Loading reports...</div>
+                    ) : (
+                      <ReportsList 
+                        reports={reports}
+                        onViewReport={handleViewReport}
+                      />
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
