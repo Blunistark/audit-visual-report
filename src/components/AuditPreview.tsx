@@ -19,8 +19,7 @@ export const AuditPreview = ({
   description,
   severity,
   category
-}: AuditPreviewProps) => {
-  // Helper function to get the correct image source
+}: AuditPreviewProps) => {  // Helper function to get the correct image source
   const getImageSource = () => {
     if (annotatedImage) {
       // If annotatedImage is a URL (from database) or data URL (from canvas)

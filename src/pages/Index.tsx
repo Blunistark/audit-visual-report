@@ -27,16 +27,21 @@ const Index = ({ projectId, onBack }: IndexProps = {}) => {
   const [category, setCategory] = useState('');
   const [activeTab, setActiveTab] = useState('url');
   const [selectedReport, setSelectedReport] = useState<any>(null);
+  const [isViewingReport, setIsViewingReport] = useState(false);
 
-  const { reports, loading, saveReport, deleteReport, toggleSolved } = useReports(projectId);
+  const { reports, loading, saveReport, deleteReport, toggleSolved, fetchSingleReport } = useReports(projectId);
 
-  // Check for screenshot parameters from browser extension
+  // Check for URL parameters (both reportId and screenshot from browser extension)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
+    const reportId = urlParams.get('reportId');
     const screenshotParam = urlParams.get('screenshot');
     const sourceUrlParam = urlParams.get('sourceUrl');
     
-    if (screenshotParam && sourceUrlParam) {
+    if (reportId) {
+      // Load specific report for viewing
+      loadReportForViewing(reportId);
+    } else if (screenshotParam && sourceUrlParam) {
       // Load screenshot from extension
       loadScreenshotFromExtension(screenshotParam, decodeURIComponent(sourceUrlParam));
       
@@ -45,6 +50,20 @@ const Index = ({ projectId, onBack }: IndexProps = {}) => {
       window.history.replaceState({}, document.title, newUrl);
     }
   }, []);
+
+  const loadReportForViewing = async (reportId: string) => {
+    try {
+      const report = await fetchSingleReport(reportId);
+      if (report) {
+        setSelectedReport(report);
+        setIsViewingReport(true);
+        setActiveTab('preview');
+      }
+    } catch (error) {
+      console.error('Error loading report:', error);
+      toast.error('Failed to load report');
+    }
+  };
   const loadScreenshotFromExtension = async (filename: string, sourceUrl: string) => {
     try {
       // Fetch the screenshot from the API server
@@ -122,8 +141,7 @@ const Index = ({ projectId, onBack }: IndexProps = {}) => {
         resetForm();
       }
     }
-  };
-  const resetForm = () => {
+  };  const resetForm = () => {
     setScreenshot(null);
     setAnnotatedImage(null);
     setUrl('');
@@ -131,11 +149,12 @@ const Index = ({ projectId, onBack }: IndexProps = {}) => {
     setSeverity('');
     setCategory('');
     setSelectedReport(null);
+    setIsViewingReport(false);
     setActiveTab('url');
     toast.success('Form reset! Start a new audit report.');
-  };
-  const handleViewReport = (report: any) => {
+  };  const handleViewReport = (report: any) => {
     setSelectedReport(report);
+    setIsViewingReport(true);
     // Clear form data when viewing an existing report
     setScreenshot(null);
     setAnnotatedImage(null);
@@ -331,22 +350,33 @@ const Index = ({ projectId, onBack }: IndexProps = {}) => {
                       {selectedReport ? 'Viewing saved report details' : 'Review your complete audit report'}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <AuditPreview 
+                  <CardContent>                    <AuditPreview 
                       url={selectedReport?.url || url}
                       screenshot={selectedReport ? undefined : screenshot}
-                      annotatedImage={selectedReport?.annotatedImage || annotatedImage}
+                      annotatedImage={selectedReport?.annotated_image_url || annotatedImage}
                       description={selectedReport?.description || issueDescription}
                       severity={selectedReport?.severity || severity}
                       category={selectedReport?.category || category}
-                    />                    <div className="mt-6 flex gap-4">
+                    /><div className="mt-6 flex gap-4">
                       {selectedReport ? (
-                        <Button onClick={() => {
-                          setSelectedReport(null);
-                          setActiveTab('reports');
-                        }} variant="outline">
-                          Back to Reports
-                        </Button>
+                        <>
+                          {isViewingReport ? (
+                            <Button onClick={() => {
+                              setSelectedReport(null);
+                              setIsViewingReport(false);
+                              setActiveTab('url');
+                            }} variant="outline">
+                              Create New Report
+                            </Button>
+                          ) : (
+                            <Button onClick={() => {
+                              setSelectedReport(null);
+                              setActiveTab('reports');
+                            }} variant="outline">
+                              Back to Reports
+                            </Button>
+                          )}
+                        </>
                       ) : (
                         <>
                           <Button onClick={resetForm} variant="outline">

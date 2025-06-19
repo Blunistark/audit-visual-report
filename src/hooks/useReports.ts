@@ -41,6 +41,23 @@ export const useReports = (projectId?: string) => {
     }
   };
 
+  const fetchSingleReport = async (reportId: string): Promise<ReportSummary | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('report_summary')
+        .select('*')
+        .eq('id', reportId)
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error fetching report:', error);
+      toast.error('Failed to load report');
+      return null;
+    }
+  };
+
   const saveReport = async (reportData: ReportData): Promise<Report | null> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -53,15 +70,14 @@ export const useReports = (projectId?: string) => {
       if (reportData.screenshot) {
         const fileExt = reportData.screenshot.name.split('.').pop();
         const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-        
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('screenshots')
+          const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('audit-screenshots')
           .upload(fileName, reportData.screenshot);
 
         if (uploadError) throw uploadError;
 
         const { data: { publicUrl } } = supabase.storage
-          .from('screenshots')
+          .from('audit-screenshots')
           .getPublicUrl(fileName);
         
         screenshotUrl = publicUrl;
@@ -74,15 +90,14 @@ export const useReports = (projectId?: string) => {
         // Convert data URL to blob
         const response = await fetch(reportData.annotatedImage);
         const blob = await response.blob();
-        
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('screenshots')
+          const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('audit-screenshots')
           .upload(fileName, blob);
 
         if (uploadError) throw uploadError;
 
         const { data: { publicUrl } } = supabase.storage
-          .from('screenshots')
+          .from('audit-screenshots')
           .getPublicUrl(fileName);
         
         annotatedImageUrl = publicUrl;
@@ -194,6 +209,7 @@ export const useReports = (projectId?: string) => {
     updateReport,
     toggleSolved,
     deleteReport,
+    fetchSingleReport,
     refetchReports: fetchReports
   };
 };
