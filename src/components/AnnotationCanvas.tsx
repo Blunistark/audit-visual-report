@@ -15,7 +15,6 @@ export const AnnotationCanvas = ({ screenshot, onAnnotatedImage }: AnnotationCan
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
   const [activeTool, setActiveTool] = useState<'select' | 'rectangle' | 'draw' | 'eraser'>('select');
   const [isImageLoaded, setIsImageLoaded] = useState(false);
-
   useEffect(() => {
     if (!canvasRef.current || !screenshot) return;
 
@@ -35,7 +34,10 @@ export const AnnotationCanvas = ({ screenshot, onAnnotatedImage }: AnnotationCan
 
     // Load the screenshot as background
     const img = new Image();
-    img.onload = () => {
+    img.crossOrigin = 'anonymous';
+      img.onload = () => {
+      console.log('Image loaded:', img.width, 'x', img.height);
+      
       const aspectRatio = img.width / img.height;
       let newWidth = 800;
       let newHeight = 600;
@@ -46,26 +48,37 @@ export const AnnotationCanvas = ({ screenshot, onAnnotatedImage }: AnnotationCan
         newWidth = 600 * aspectRatio;
       }
 
+      console.log('Canvas dimensions:', newWidth, 'x', newHeight);
       canvas.setDimensions({ width: newWidth, height: newHeight });
-      
-      // Use FabricImage.fromURL for v6
-      FabricImage.fromURL(img.src).then((fabricImg) => {
-        fabricImg.set({
-          scaleX: newWidth / img.width,
-          scaleY: newHeight / img.height,
-          selectable: false,
-          evented: false,
-        });
-        canvas.backgroundImage = fabricImg;
-        canvas.renderAll();
-        setIsImageLoaded(true);
-        toast.success('Image loaded! Start annotating.');
+        // Create fabric image from the loaded image
+      const fabricImg = new FabricImage(img, {
+        scaleX: newWidth / img.width,
+        scaleY: newHeight / img.height,
+        selectable: false,
+        evented: false,
+        left: 0,
+        top: 0,
       });
+      
+      console.log('Fabric image created with scale:', newWidth / img.width, newHeight / img.height);
+      
+      // Set as background image
+      canvas.backgroundImage = fabricImg;
+      canvas.renderAll();
+      setIsImageLoaded(true);
+      toast.success('Image loaded! Start annotating.');
     };
+    
+    img.onerror = (error) => {
+      console.error('Failed to load image:', error);
+      toast.error('Failed to load image for annotation');
+    };
+    
     img.src = URL.createObjectURL(screenshot);
 
     return () => {
       canvas.dispose();
+      URL.revokeObjectURL(img.src);
     };
   }, [screenshot]);
 
@@ -97,16 +110,14 @@ export const AnnotationCanvas = ({ screenshot, onAnnotatedImage }: AnnotationCan
       fabricCanvas.setActiveObject(rect);
     }
   };
-
   const handleClear = () => {
     if (!fabricCanvas) return;
     
+    // Remove all objects except background image
     const objects = fabricCanvas.getObjects();
-    objects.forEach(obj => {
-      if (obj !== fabricCanvas.backgroundImage) {
-        fabricCanvas.remove(obj);
-      }
-    });
+    const objectsToRemove = objects.filter(obj => obj !== fabricCanvas.backgroundImage);
+    objectsToRemove.forEach(obj => fabricCanvas.remove(obj));
+    
     fabricCanvas.renderAll();
     toast.success('Annotations cleared!');
   };

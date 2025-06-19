@@ -1,0 +1,13 @@
+/* Content script styles for Web Audit Screenshot Tool */
+/* These styles are injected into web pages */
+
+.web-audit-capture-overlay {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif !important;
+}
+
+/* Ensure the overlay appears above all content */
+#web-audit-capture-overlay * {
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}

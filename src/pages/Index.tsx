@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { AnnotationCanvas } from '@/components/AnnotationCanvas';
 import { ScreenshotUpload } from '@/components/ScreenshotUpload';
+import { BrowserExtension } from '@/components/BrowserExtension';
 import { URLInput } from '@/components/URLInput';
 import { IssueDescription } from '@/components/IssueDescription';
 import { AuditPreview } from '@/components/AuditPreview';
 import { ReportsList } from '@/components/ReportsList';
 import { useReports } from '@/hooks/useReports';
-import { FileText, Image, Globe, Eye, List } from 'lucide-react';
+import { FileText, Image, Globe, Eye, List, Chrome } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Index = () => {
@@ -24,12 +25,58 @@ const Index = () => {
 
   const { reports, loading, saveReport, deleteReport, markReportSolved } = useReports();
 
+  // Check for screenshot parameters from browser extension
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const screenshotParam = urlParams.get('screenshot');
+    const sourceUrlParam = urlParams.get('sourceUrl');
+    
+    if (screenshotParam && sourceUrlParam) {
+      // Load screenshot from extension
+      loadScreenshotFromExtension(screenshotParam, decodeURIComponent(sourceUrlParam));
+      
+      // Clean up URL parameters
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+  }, []);
+  const loadScreenshotFromExtension = async (filename: string, sourceUrl: string) => {
+    try {
+      // Fetch the screenshot from the API server
+      const response = await fetch(`http://localhost:8081/uploads/${filename}`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const file = new File([blob], filename, { type: 'image/png' });
+        
+        // Set the screenshot and URL
+        setScreenshot(file);
+        setUrl(sourceUrl);
+        setActiveTab('annotate');
+        toast.success('Screenshot loaded from browser extension! You can now annotate it.');
+      } else {
+        toast.error('Failed to load screenshot from extension');
+      }
+    } catch (error) {
+      console.error('Failed to load screenshot from extension:', error);
+      toast.error('Failed to load screenshot from extension');
+    }
+  };
+
   const handleScreenshotChange = (file: File | null) => {
     setScreenshot(file);
     if (file) {
       setActiveTab('annotate');
       toast.success('Screenshot uploaded! You can now annotate it.');
     }
+  };
+
+  const handleBrowserExtensionScreenshot = (file: File, sourceUrl: string) => {
+    setScreenshot(file);
+    if (sourceUrl && !url) {
+      setUrl(sourceUrl);
+    }
+    setActiveTab('annotate');
+    toast.success('Screenshot imported from browser extension! You can now annotate it.');
   };
 
   const handleAnnotatedImage = (dataUrl: string) => {
@@ -168,23 +215,29 @@ const Index = () => {
                     </div>
                   </CardContent>
                 </Card>
-              </TabsContent>
-
-              <TabsContent value="screenshot" className="mt-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Step 2: Upload Screenshot</CardTitle>
-                    <CardDescription>
-                      Upload a screenshot of the issue you want to report
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ScreenshotUpload 
-                      screenshot={screenshot}
-                      onScreenshotChange={handleScreenshotChange}
-                    />
-                  </CardContent>
-                </Card>
+              </TabsContent>              <TabsContent value="screenshot" className="mt-6">
+                <div className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Step 2: Upload Screenshot</CardTitle>
+                      <CardDescription>
+                        Upload a screenshot of the issue you want to report
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ScreenshotUpload 
+                        screenshot={screenshot}
+                        onScreenshotChange={handleScreenshotChange}
+                      />
+                    </CardContent>
+                  </Card>
+                  
+                  <div className="text-center text-gray-500 font-medium">OR</div>
+                  
+                  <BrowserExtension
+                    onScreenshotSelect={handleBrowserExtensionScreenshot}
+                  />
+                </div>
               </TabsContent>
 
               <TabsContent value="annotate" className="mt-6">
