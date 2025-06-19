@@ -16,12 +16,16 @@ const Index = () => {
   const [annotatedImage, setAnnotatedImage] = useState<string | null>(null);
   const [url, setUrl] = useState('');
   const [issueDescription, setIssueDescription] = useState('');
+  const [severity, setSeverity] = useState('');
+  const [category, setCategory] = useState('');
   const [activeTab, setActiveTab] = useState('url');
 
-  const handleScreenshotUpload = (file: File) => {
+  const handleScreenshotChange = (file: File | null) => {
     setScreenshot(file);
-    setActiveTab('annotate');
-    toast.success('Screenshot uploaded! You can now annotate it.');
+    if (file) {
+      setActiveTab('annotate');
+      toast.success('Screenshot uploaded! You can now annotate it.');
+    }
   };
 
   const handleAnnotatedImage = (dataUrl: string) => {
@@ -29,16 +33,22 @@ const Index = () => {
     setActiveTab('description');
   };
 
-  const handleURLSubmit = (submittedUrl: string) => {
-    setUrl(submittedUrl);
-    setActiveTab('screenshot');
-    toast.success('URL saved! Now upload a screenshot of the issue.');
+  const handleUrlChange = (newUrl: string) => {
+    setUrl(newUrl);
   };
 
-  const handleIssueSubmit = (description: string) => {
-    setIssueDescription(description);
-    setActiveTab('preview');
-    toast.success('Issue description saved! Check the preview.');
+  const handleUrlSubmit = () => {
+    if (url) {
+      setActiveTab('screenshot');
+      toast.success('URL saved! Now upload a screenshot of the issue.');
+    }
+  };
+
+  const handleDescriptionComplete = () => {
+    if (issueDescription) {
+      setActiveTab('preview');
+      toast.success('Issue description saved! Check the preview.');
+    }
   };
 
   const resetForm = () => {
@@ -46,6 +56,8 @@ const Index = () => {
     setAnnotatedImage(null);
     setUrl('');
     setIssueDescription('');
+    setSeverity('');
+    setCategory('');
     setActiveTab('url');
     toast.success('Form reset! Start a new audit report.');
   };
@@ -102,7 +114,19 @@ const Index = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <URLInput onURLSubmit={handleURLSubmit} />
+                    <URLInput 
+                      url={url} 
+                      onUrlChange={handleUrlChange}
+                    />
+                    <div className="mt-4">
+                      <Button 
+                        onClick={handleUrlSubmit}
+                        disabled={!url}
+                        className="w-full"
+                      >
+                        Continue to Screenshot
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -116,7 +140,10 @@ const Index = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ScreenshotUpload onScreenshotUpload={handleScreenshotUpload} />
+                    <ScreenshotUpload 
+                      screenshot={screenshot}
+                      onScreenshotChange={handleScreenshotChange}
+                    />
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -147,7 +174,23 @@ const Index = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <IssueDescription onIssueSubmit={handleIssueSubmit} />
+                    <IssueDescription 
+                      description={issueDescription}
+                      onDescriptionChange={setIssueDescription}
+                      severity={severity}
+                      onSeverityChange={setSeverity}
+                      category={category}
+                      onCategoryChange={setCategory}
+                    />
+                    <div className="mt-4">
+                      <Button 
+                        onClick={handleDescriptionComplete}
+                        disabled={!issueDescription || !severity || !category}
+                        className="w-full"
+                      >
+                        Preview Report
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -166,8 +209,11 @@ const Index = () => {
                   <CardContent>
                     <AuditPreview 
                       url={url}
-                      screenshot={annotatedImage || (screenshot ? URL.createObjectURL(screenshot) : null)}
+                      screenshot={screenshot}
+                      annotatedImage={annotatedImage}
                       description={issueDescription}
+                      severity={severity}
+                      category={category}
                     />
                     <div className="mt-6 flex gap-4">
                       <Button onClick={resetForm} variant="outline">
