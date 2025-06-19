@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,6 +20,19 @@ export const AuditPreview = ({
   severity,
   category
 }: AuditPreviewProps) => {
+  // Helper function to get the correct image source
+  const getImageSource = () => {
+    if (annotatedImage) {
+      // If annotatedImage is a URL (from database) or data URL (from canvas)
+      return annotatedImage;
+    }
+    if (screenshot) {
+      // If screenshot is a File object, create object URL
+      return URL.createObjectURL(screenshot);
+    }
+    return '';
+  };
+
   const severityColors = {
     low: 'bg-green-100 text-green-800 border-green-200',
     medium: 'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -91,23 +103,25 @@ export const AuditPreview = ({
           <div>
             <h3 className="font-medium text-gray-900 mb-2">Issue Category</h3>
             <div className="flex items-center gap-2">
-              <Tag className="h-4 w-4 text-gray-500" />
-              <Badge variant="secondary">
-                {category.charAt(0).toUpperCase() + category.slice(1).replace('-', '/')}
-              </Badge>
-            </div>
+              <Tag className="h-4 w-4 text-gray-500" />              <Badge variant="secondary">
+                {category.charAt(0).toUpperCase() + category.slice(1)}
+              </Badge></div>
           </div>
         )}
-
+        
         {/* Screenshot Section */}
         <div>
           <h3 className="font-medium text-gray-900 mb-2">Screenshot Evidence</h3>
-          {annotatedImage || screenshot ? (
+          {(annotatedImage || screenshot) ? (
             <div className="border rounded-lg p-2 bg-gray-50">
               <img
-                src={annotatedImage || (screenshot ? URL.createObjectURL(screenshot) : '')}
+                src={getImageSource()}
                 alt="Issue screenshot"
-                className="max-w-full h-auto rounded"
+                className="max-w-full h-auto rounded block"
+                onError={(e) => {
+                  console.error('Image failed to load:', e);
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
               />
               {annotatedImage && (
                 <p className="text-xs text-green-600 mt-2">

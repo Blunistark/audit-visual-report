@@ -46,17 +46,11 @@ export const IssueDescription = ({
           <Select value={category} onValueChange={onCategoryChange}>
             <SelectTrigger className="mt-1">
               <SelectValue placeholder="Select category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ui-ux">UI/UX Design</SelectItem>
+            </SelectTrigger>            <SelectContent>
+              <SelectItem value="ui/ux">UI/UX Design</SelectItem>
               <SelectItem value="accessibility">Accessibility</SelectItem>
               <SelectItem value="performance">Performance</SelectItem>
               <SelectItem value="functionality">Functionality</SelectItem>
-              <SelectItem value="seo">SEO</SelectItem>
-              <SelectItem value="security">Security</SelectItem>
-              <SelectItem value="content">Content</SelectItem>
-              <SelectItem value="mobile">Mobile Responsiveness</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
             </SelectContent>
           </Select>
         </div>

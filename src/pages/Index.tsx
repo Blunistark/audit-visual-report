@@ -71,7 +71,6 @@ const Index = () => {
       }
     }
   };
-
   const resetForm = () => {
     setScreenshot(null);
     setAnnotatedImage(null);
@@ -79,13 +78,19 @@ const Index = () => {
     setIssueDescription('');
     setSeverity('');
     setCategory('');
-    setActiveTab('url');
     setSelectedReport(null);
+    setActiveTab('url');
     toast.success('Form reset! Start a new audit report.');
   };
-
   const handleViewReport = (report: any) => {
     setSelectedReport(report);
+    // Clear form data when viewing an existing report
+    setScreenshot(null);
+    setAnnotatedImage(null);
+    setUrl('');
+    setIssueDescription('');
+    setSeverity('');
+    setCategory('');
     setActiveTab('preview');
   };
 
@@ -112,13 +117,12 @@ const Index = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-5">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="url" className="flex items-center gap-2">
                   <Globe className="h-4 w-4" />
                   URL
                 </TabsTrigger>
-                <TabsTrigger value="screenshot" className="flex items-center gap-2">
+                <TabsTrigger value="screenshot" className="flex items-center gap-2" disabled={!url}>
                   <Image className="h-4 w-4" />
                   Screenshot
                 </TabsTrigger>
@@ -129,6 +133,10 @@ const Index = () => {
                 <TabsTrigger value="description" className="flex items-center gap-2" disabled={!annotatedImage && !screenshot}>
                   <FileText className="h-4 w-4" />
                   Description
+                </TabsTrigger>
+                <TabsTrigger value="preview" className="flex items-center gap-2" disabled={!issueDescription || !severity || !category}>
+                  <Eye className="h-4 w-4" />
+                  Preview
                 </TabsTrigger>
                 <TabsTrigger value="reports" className="flex items-center gap-2">
                   <List className="h-4 w-4" />
@@ -269,10 +277,12 @@ const Index = () => {
                       description={selectedReport?.description || issueDescription}
                       severity={selectedReport?.severity || severity}
                       category={selectedReport?.category || category}
-                    />
-                    <div className="mt-6 flex gap-4">
+                    />                    <div className="mt-6 flex gap-4">
                       {selectedReport ? (
-                        <Button onClick={() => setActiveTab('reports')} variant="outline">
+                        <Button onClick={() => {
+                          setSelectedReport(null);
+                          setActiveTab('reports');
+                        }} variant="outline">
                           Back to Reports
                         </Button>
                       ) : (
