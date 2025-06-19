@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Canvas as FabricCanvas, Rect, FabricImage } from 'fabric';
@@ -24,9 +25,11 @@ export const AnnotationCanvas = ({ screenshot, onAnnotatedImage }: AnnotationCan
       backgroundColor: '#ffffff',
     });
 
-    // Initialize the freeDrawingBrush right after canvas creation
-    canvas.freeDrawingBrush.color = '#ef4444';
-    canvas.freeDrawingBrush.width = 3;
+    // Initialize the freeDrawingBrush with proper null checks
+    if (canvas.freeDrawingBrush) {
+      canvas.freeDrawingBrush.color = '#ef4444';
+      canvas.freeDrawingBrush.width = 3;
+    }
 
     setFabricCanvas(canvas);
 
