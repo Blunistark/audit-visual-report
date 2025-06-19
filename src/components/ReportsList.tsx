@@ -7,27 +7,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Calendar, Globe, AlertTriangle, Bug, Zap, Eye, Search, Filter, Trash2, CheckCircle, XCircle } from 'lucide-react';
-
-interface Report {
-  id: string;
-  url: string;
-  description: string;
-  severity: string;
-  category: string;
-  createdAt: Date;
-  screenshot?: string;
-  annotatedImage?: string;
-  solved: boolean;
-}
+import { ReportSummary } from '@/integrations/supabase/types';
 
 interface ReportsListProps {
-  reports: Report[];
-  onViewReport: (report: Report) => void;
-  onDeleteReport: (reportId: string) => void;
-  onMarkSolved: (reportId: string, solved: boolean) => void;
+  reports: ReportSummary[];
+  loading?: boolean;
+  onToggleSolved?: (reportId: string, solved: boolean) => void;
+  onDeleteReport?: (reportId: string) => void;
+  onEditReport?: (report: ReportSummary) => void;
+  showProjectColumn?: boolean;
 }
 
-export const ReportsList = ({ reports, onViewReport, onDeleteReport, onMarkSolved }: ReportsListProps) => {  const [searchTerm, setSearchTerm] = useState('');
+export const ReportsList = ({ 
+  reports, 
+  loading = false,
+  onToggleSolved, 
+  onDeleteReport, 
+  onEditReport,
+  showProjectColumn = true 
+}: ReportsListProps) => {  const [searchTerm, setSearchTerm] = useState('');
   const [filterSeverity, setFilterSeverity] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -78,8 +76,18 @@ export const ReportsList = ({ reports, onViewReport, onDeleteReport, onMarkSolve
       acc[report.category] = [];
     }
     acc[report.category].push(report);
-    return acc;
-  }, {} as Record<string, Report[]>);
+    return acc;  }, {} as Record<string, ReportSummary[]>);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="text-gray-600 mt-2">Loading reports...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -181,20 +189,18 @@ export const ReportsList = ({ reports, onViewReport, onDeleteReport, onMarkSolve
                           <div className="flex items-center text-sm text-gray-500">
                             <Globe className="h-4 w-4 mr-1" />
                             {new URL(report.url).hostname}
-                          </div>
-                          <div className="flex items-center text-sm text-gray-500">
+                          </div>                          <div className="flex items-center text-sm text-gray-500">
                             <Calendar className="h-4 w-4 mr-1" />
-                            {report.createdAt.toLocaleDateString()}
+                            {new Date(report.created_at).toLocaleDateString()}
                           </div>
                         </div>
                         <h4 className="font-medium mb-1">{report.description.slice(0, 100)}...</h4>
                         <p className="text-sm text-gray-600">{report.url}</p>
                       </div>
-                      <div className="flex items-center gap-2 ml-4">
-                        <Button
+                      <div className="flex items-center gap-2 ml-4">                        <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => onViewReport(report)}
+                          onClick={() => onEditReport?.(report)}
                         >
                           <Eye className="h-4 w-4 mr-1" />
                           View
@@ -202,7 +208,7 @@ export const ReportsList = ({ reports, onViewReport, onDeleteReport, onMarkSolve
                         <Button
                           variant={report.solved ? "default" : "outline"}
                           size="sm"
-                          onClick={() => onMarkSolved(report.id, !report.solved)}
+                          onClick={() => onToggleSolved?.(report.id, !report.solved)}
                           className={report.solved ? "bg-green-600 hover:bg-green-700" : ""}
                         >
                           {report.solved ? (
@@ -236,9 +242,8 @@ export const ReportsList = ({ reports, onViewReport, onDeleteReport, onMarkSolve
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => onDeleteReport(report.id)}
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>                              <AlertDialogAction
+                                onClick={() => onDeleteReport?.(report.id)}
                                 className="bg-red-600 hover:bg-red-700"
                               >
                                 Delete

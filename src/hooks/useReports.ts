@@ -1,43 +1,38 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { Report, ReportInsert, ReportUpdate, ReportSummary } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 
-interface Report {
-  id: string;
+interface ReportData {
   url: string;
   description: string;
   severity: string;
   category: string;
-  createdAt: Date;
-  screenshot?: string;
+  screenshot?: File;
   annotatedImage?: string;
-  solved: boolean;
+  projectId?: string;
 }
 
-export const useReports = () => {
-  const [reports, setReports] = useState<Report[]>([]);
+export const useReports = (projectId?: string) => {
+  const [reports, setReports] = useState<ReportSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchReports = async () => {
     try {
-      const { data, error } = await supabase
-        .from('reports')
+      let query = supabase
+        .from('report_summary')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;      const formattedReports = data.map((report: any) => ({
-        id: report.id,
-        url: report.url,
-        description: report.description,
-        severity: report.severity,
-        category: report.category,
-        createdAt: new Date(report.created_at),
-        screenshot: report.screenshot_url,
-        annotatedImage: report.annotated_image_url,
-        solved: report.solved || false,
-      }));
+      // Filter by project if projectId is provided
+      if (projectId) {
+        query = query.eq('project_id', projectId);
+      }
 
-      setReports(formattedReports);
+      const { data, error } = await query;
+
+      if (error) throw error;
+      setReports(data || []);
     } catch (error) {
       console.error('Error fetching reports:', error);
       toast.error('Failed to load reports');
@@ -46,110 +41,121 @@ export const useReports = () => {
     }
   };
 
-  const saveReport = async (reportData: {
-    url: string;
-    description: string;
-    severity: string;
-    category: string;
-    screenshot?: File;
-    annotatedImage?: string;
-  }) => {
+  const saveReport = async (reportData: ReportData): Promise<Report | null> => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
       let screenshotUrl = null;
       let annotatedImageUrl = null;
 
       // Upload screenshot if provided
       if (reportData.screenshot) {
         const fileExt = reportData.screenshot.name.split('.').pop();
-        const fileName = `${Date.now()}-screenshot.${fileExt}`;
+        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
         
-        const { error: uploadError } = await supabase.storage
-          .from('audit-screenshots')
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('screenshots')
           .upload(fileName, reportData.screenshot);
 
         if (uploadError) throw uploadError;
 
         const { data: { publicUrl } } = supabase.storage
-          .from('audit-screenshots')
+          .from('screenshots')
           .getPublicUrl(fileName);
-
+        
         screenshotUrl = publicUrl;
       }
 
       // Upload annotated image if provided
       if (reportData.annotatedImage) {
-        const fileName = `${Date.now()}-annotated.png`;
+        const fileName = `${user.id}/${Date.now()}_annotated.png`;
         
         // Convert data URL to blob
         const response = await fetch(reportData.annotatedImage);
         const blob = await response.blob();
         
-        const { error: uploadError } = await supabase.storage
-          .from('audit-screenshots')
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('screenshots')
           .upload(fileName, blob);
 
         if (uploadError) throw uploadError;
 
         const { data: { publicUrl } } = supabase.storage
-          .from('audit-screenshots')
+          .from('screenshots')
           .getPublicUrl(fileName);
-
+        
         annotatedImageUrl = publicUrl;
       }
 
-      // Save report to database
-      const { error } = await supabase
+      // Create the report
+      const reportInsert: ReportInsert = {
+        url: reportData.url,
+        description: reportData.description,
+        severity: reportData.severity,
+        category: reportData.category,
+        screenshot_url: screenshotUrl,
+        annotated_image_url: annotatedImageUrl,
+        user_id: user.id,
+        project_id: reportData.projectId || null
+      };
+
+      const { data, error } = await supabase
         .from('reports')
-        .insert({
-          url: reportData.url,
-          description: reportData.description,
-          severity: reportData.severity,
-          category: reportData.category,
-          screenshot_url: screenshotUrl,
-          annotated_image_url: annotatedImageUrl,
-        });
+        .insert(reportInsert)
+        .select()
+        .single();
 
       if (error) throw error;
 
+      await fetchReports();
       toast.success('Report saved successfully!');
-      fetchReports(); // Refresh the reports list
-      return true;
+      return data;
     } catch (error) {
       console.error('Error saving report:', error);
       toast.error('Failed to save report');
+      return null;
+    }
+  };
+
+  const updateReport = async (id: string, updates: Partial<ReportData>): Promise<boolean> => {
+    try {
+      const reportUpdate: ReportUpdate = {};
+      
+      if (updates.url) reportUpdate.url = updates.url;
+      if (updates.description) reportUpdate.description = updates.description;
+      if (updates.severity) reportUpdate.severity = updates.severity;
+      if (updates.category) reportUpdate.category = updates.category;
+      if (updates.projectId !== undefined) reportUpdate.project_id = updates.projectId;
+
+      const { error } = await supabase
+        .from('reports')
+        .update(reportUpdate)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await fetchReports();
+      toast.success('Report updated successfully!');
+      return true;
+    } catch (error) {
+      console.error('Error updating report:', error);
+      toast.error('Failed to update report');
       return false;
     }
   };
 
-  const deleteReport = async (reportId: string) => {
+  const toggleSolved = async (id: string, solved: boolean): Promise<boolean> => {
     try {
       const { error } = await supabase
         .from('reports')
-        .delete()
-        .eq('id', reportId);
+        .update({ solved })
+        .eq('id', id);
 
       if (error) throw error;
 
-      toast.success('Report deleted successfully!');
-      fetchReports(); // Refresh the reports list
-      return true;
-    } catch (error) {
-      console.error('Error deleting report:', error);
-      toast.error('Failed to delete report');
-      return false;
-    }
-  };
-
-  const markReportSolved = async (reportId: string, solved: boolean) => {
-    try {      const { error } = await supabase
-        .from('reports')
-        .update({ solved } as any)
-        .eq('id', reportId);
-
-      if (error) throw error;
-
-      toast.success(solved ? 'Report marked as solved!' : 'Report marked as unsolved!');
-      fetchReports(); // Refresh the reports list
+      await fetchReports();
+      toast.success(`Report marked as ${solved ? 'solved' : 'unsolved'}!`);
       return true;
     } catch (error) {
       console.error('Error updating report status:', error);
@@ -158,16 +164,36 @@ export const useReports = () => {
     }
   };
 
+  const deleteReport = async (id: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('reports')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await fetchReports();
+      toast.success('Report deleted successfully!');
+      return true;
+    } catch (error) {
+      console.error('Error deleting report:', error);
+      toast.error('Failed to delete report');
+      return false;
+    }
+  };
+
   useEffect(() => {
     fetchReports();
-  }, []);
+  }, [projectId]);
 
   return {
     reports,
     loading,
     saveReport,
+    updateReport,
+    toggleSolved,
     deleteReport,
-    markReportSolved,
-    refetch: fetchReports,
+    refetchReports: fetchReports
   };
 };

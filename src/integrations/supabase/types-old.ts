@@ -9,78 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      project_members: {
-        Row: {
-          added_at: string | null
-          id: string
-          project_id: string
-          role: string | null
-          user_id: string
-        }
-        Insert: {
-          added_at?: string | null
-          id?: string
-          project_id: string
-          role?: string | null
-          user_id: string
-        }
-        Update: {
-          added_at?: string | null
-          id?: string
-          project_id?: string
-          role?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "project_members_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "project_stats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "project_members_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      projects: {
-        Row: {
-          created_at: string | null
-          created_by: string | null
-          description: string | null
-          id: string
-          name: string
-          status: string | null
-          updated_at: string | null
-          website_url: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          name: string
-          status?: string | null
-          updated_at?: string | null
-          website_url?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          name?: string
-          status?: string | null
-          updated_at?: string | null
-          website_url?: string | null
-        }
-        Relationships: []
-      }
       reports: {
         Row: {
           annotated_image_url: string | null
@@ -88,10 +16,8 @@ export type Database = {
           created_at: string
           description: string
           id: string
-          project_id: string | null
           screenshot_url: string | null
           severity: string
-          solved: boolean | null
           updated_at: string
           url: string
           user_id: string | null
@@ -102,10 +28,8 @@ export type Database = {
           created_at?: string
           description: string
           id?: string
-          project_id?: string | null
           screenshot_url?: string | null
           severity: string
-          solved?: boolean | null
           updated_at?: string
           url: string
           user_id?: string | null
@@ -116,88 +40,17 @@ export type Database = {
           created_at?: string
           description?: string
           id?: string
-          project_id?: string | null
           screenshot_url?: string | null
           severity?: string
-          solved?: boolean | null
           updated_at?: string
           url?: string
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "reports_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "project_stats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reports_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {
-      project_stats: {
-        Row: {
-          completion_percentage: number | null
-          created_at: string | null
-          critical_issues: number | null
-          description: string | null
-          high_issues: number | null
-          id: string | null
-          low_issues: number | null
-          medium_issues: number | null
-          name: string | null
-          open_issues: number | null
-          solved_issues: number | null
-          status: string | null
-          total_reports: number | null
-          updated_at: string | null
-          website_url: string | null
-        }
-        Relationships: []
-      }
-      report_summary: {
-        Row: {
-          annotated_image_url: string | null
-          category: string | null
-          created_at: string | null
-          description: string | null
-          id: string | null
-          project_id: string | null
-          project_name: string | null
-          project_url: string | null
-          reporter_email: string | null
-          screenshot_url: string | null
-          severity: string | null
-          solved: boolean | null
-          updated_at: string | null
-          url: string | null
-          user_id: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "reports_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "project_stats"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reports_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       [_ in never]: never
@@ -321,19 +174,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
-// Helper types for the new project system
-export type Project = Tables<'projects'>
-export type ProjectInsert = TablesInsert<'projects'>
-export type ProjectUpdate = TablesUpdate<'projects'>
-
-export type ProjectMember = Tables<'project_members'>
-export type ProjectMemberInsert = TablesInsert<'project_members'>
-export type ProjectMemberUpdate = TablesUpdate<'project_members'>
-
-export type Report = Tables<'reports'>
-export type ReportInsert = TablesInsert<'reports'>
-export type ReportUpdate = TablesUpdate<'reports'>
-
-export type ProjectStats = Tables<'project_stats'>
-export type ReportSummary = Tables<'report_summary'>

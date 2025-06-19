@@ -13,7 +13,12 @@ import { useReports } from '@/hooks/useReports';
 import { FileText, Image, Globe, Eye, List, Chrome } from 'lucide-react';
 import { toast } from 'sonner';
 
-const Index = () => {
+interface IndexProps {
+  projectId?: string;
+  onBack?: () => void;
+}
+
+const Index = ({ projectId, onBack }: IndexProps = {}) => {
   const [screenshot, setScreenshot] = useState<File | null>(null);
   const [annotatedImage, setAnnotatedImage] = useState<string | null>(null);
   const [url, setUrl] = useState('');
@@ -23,7 +28,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState('url');
   const [selectedReport, setSelectedReport] = useState<any>(null);
 
-  const { reports, loading, saveReport, deleteReport, markReportSolved } = useReports();
+  const { reports, loading, saveReport, deleteReport, toggleSolved } = useReports(projectId);
 
   // Check for screenshot parameters from browser extension
   useEffect(() => {
@@ -143,8 +148,14 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-8">
+      <div className="max-w-6xl mx-auto">        <div className="text-center mb-8">
+          {onBack && (
+            <div className="mb-4">
+              <Button variant="outline" onClick={onBack} className="flex items-center gap-2">
+                ← Back to Dashboard
+              </Button>
+            </div>
+          )}
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             Visual Audit Report Tool
           </h1>
@@ -297,17 +308,14 @@ const Index = () => {
                     <CardDescription>
                       View and manage all your audit reports organized by category
                     </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {loading ? (
-                      <div className="text-center py-8">Loading reports...</div>
-                    ) : (                      <ReportsList 
-                        reports={reports}
-                        onViewReport={handleViewReport}
-                        onDeleteReport={deleteReport}
-                        onMarkSolved={markReportSolved}
-                      />
-                    )}
+                  </CardHeader>                  <CardContent>
+                    <ReportsList 
+                      reports={reports}
+                      loading={loading}
+                      onEditReport={handleViewReport}
+                      onDeleteReport={deleteReport}
+                      onToggleSolved={toggleSolved}
+                    />
                   </CardContent>
                 </Card>
               </TabsContent>
