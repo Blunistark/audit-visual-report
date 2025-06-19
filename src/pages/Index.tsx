@@ -22,7 +22,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState('url');
   const [selectedReport, setSelectedReport] = useState<any>(null);
 
-  const { reports, loading, saveReport } = useReports();
+  const { reports, loading, saveReport, deleteReport, markReportSolved } = useReports();
 
   const handleScreenshotChange = (file: File | null) => {
     setScreenshot(file);
@@ -248,10 +248,11 @@ const Index = () => {
                   <CardContent>
                     {loading ? (
                       <div className="text-center py-8">Loading reports...</div>
-                    ) : (
-                      <ReportsList 
+                    ) : (                      <ReportsList 
                         reports={reports}
                         onViewReport={handleViewReport}
+                        onDeleteReport={deleteReport}
+                        onMarkSolved={markReportSolved}
                       />
                     )}
                   </CardContent>

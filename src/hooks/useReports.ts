@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -12,6 +11,7 @@ interface Report {
   createdAt: Date;
   screenshot?: string;
   annotatedImage?: string;
+  solved: boolean;
 }
 
 export const useReports = () => {
@@ -25,9 +25,7 @@ export const useReports = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-
-      const formattedReports = data.map(report => ({
+      if (error) throw error;      const formattedReports = data.map((report: any) => ({
         id: report.id,
         url: report.url,
         description: report.description,
@@ -36,6 +34,7 @@ export const useReports = () => {
         createdAt: new Date(report.created_at),
         screenshot: report.screenshot_url,
         annotatedImage: report.annotated_image_url,
+        solved: report.solved || false,
       }));
 
       setReports(formattedReports);
@@ -122,6 +121,43 @@ export const useReports = () => {
     }
   };
 
+  const deleteReport = async (reportId: string) => {
+    try {
+      const { error } = await supabase
+        .from('reports')
+        .delete()
+        .eq('id', reportId);
+
+      if (error) throw error;
+
+      toast.success('Report deleted successfully!');
+      fetchReports(); // Refresh the reports list
+      return true;
+    } catch (error) {
+      console.error('Error deleting report:', error);
+      toast.error('Failed to delete report');
+      return false;
+    }
+  };
+
+  const markReportSolved = async (reportId: string, solved: boolean) => {
+    try {      const { error } = await supabase
+        .from('reports')
+        .update({ solved } as any)
+        .eq('id', reportId);
+
+      if (error) throw error;
+
+      toast.success(solved ? 'Report marked as solved!' : 'Report marked as unsolved!');
+      fetchReports(); // Refresh the reports list
+      return true;
+    } catch (error) {
+      console.error('Error updating report status:', error);
+      toast.error('Failed to update report status');
+      return false;
+    }
+  };
+
   useEffect(() => {
     fetchReports();
   }, []);
@@ -130,6 +166,8 @@ export const useReports = () => {
     reports,
     loading,
     saveReport,
+    deleteReport,
+    markReportSolved,
     refetch: fetchReports,
   };
 };

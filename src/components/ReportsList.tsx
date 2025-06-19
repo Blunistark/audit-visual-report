@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Calendar, Globe, AlertTriangle, Bug, Zap, Eye, Search, Filter } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Calendar, Globe, AlertTriangle, Bug, Zap, Eye, Search, Filter, Trash2, CheckCircle, XCircle } from 'lucide-react';
 
 interface Report {
   id: string;
@@ -16,17 +17,20 @@ interface Report {
   createdAt: Date;
   screenshot?: string;
   annotatedImage?: string;
+  solved: boolean;
 }
 
 interface ReportsListProps {
   reports: Report[];
   onViewReport: (report: Report) => void;
+  onDeleteReport: (reportId: string) => void;
+  onMarkSolved: (reportId: string, solved: boolean) => void;
 }
 
-export const ReportsList = ({ reports, onViewReport }: ReportsListProps) => {
-  const [searchTerm, setSearchTerm] = useState('');
+export const ReportsList = ({ reports, onViewReport, onDeleteReport, onMarkSolved }: ReportsListProps) => {  const [searchTerm, setSearchTerm] = useState('');
   const [filterSeverity, setFilterSeverity] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
 
   const getSeverityColor = (severity: string) => {
     switch (severity.toLowerCase()) {
@@ -57,14 +61,16 @@ export const ReportsList = ({ reports, onViewReport }: ReportsListProps) => {
         return <AlertTriangle className="h-4 w-4" />;
     }
   };
-
   const filteredReports = reports.filter(report => {
     const matchesSearch = report.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          report.url.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSeverity = filterSeverity === 'all' || report.severity === filterSeverity;
     const matchesCategory = filterCategory === 'all' || report.category === filterCategory;
+    const matchesStatus = filterStatus === 'all' || 
+                         (filterStatus === 'solved' && report.solved) ||
+                         (filterStatus === 'unsolved' && !report.solved);
     
-    return matchesSearch && matchesSeverity && matchesCategory;
+    return matchesSearch && matchesSeverity && matchesCategory && matchesStatus;
   });
 
   const reportsByCategory = filteredReports.reduce((acc, report) => {
@@ -87,8 +93,7 @@ export const ReportsList = ({ reports, onViewReport }: ReportsListProps) => {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
           />
-        </div>
-        <div className="flex gap-2">
+        </div>        <div className="flex gap-2">
           <Select value={filterSeverity} onValueChange={setFilterSeverity}>
             <SelectTrigger className="w-[140px]">
               <Filter className="h-4 w-4 mr-2" />
@@ -113,6 +118,17 @@ export const ReportsList = ({ reports, onViewReport }: ReportsListProps) => {
               <SelectItem value="performance">Performance</SelectItem>
               <SelectItem value="accessibility">Accessibility</SelectItem>
               <SelectItem value="functionality">Functionality</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[140px]">
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="solved">Solved</SelectItem>
+              <SelectItem value="unsolved">Unsolved</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -148,15 +164,20 @@ export const ReportsList = ({ reports, onViewReport }: ReportsListProps) => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {categoryReports.map((report) => (
-                  <div key={report.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+              <div className="space-y-4">                {categoryReports.map((report) => (
+                  <div key={report.id} className={`border rounded-lg p-4 transition-colors ${report.solved ? 'bg-green-50 border-green-200' : 'hover:bg-gray-50'}`}>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <Badge className={`${getSeverityColor(report.severity)} text-white`}>
                             {report.severity}
                           </Badge>
+                          {report.solved && (
+                            <Badge className="bg-green-100 text-green-800 border-green-200">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Solved
+                            </Badge>
+                          )}
                           <div className="flex items-center text-sm text-gray-500">
                             <Globe className="h-4 w-4 mr-1" />
                             {new URL(report.url).hostname}
@@ -169,15 +190,63 @@ export const ReportsList = ({ reports, onViewReport }: ReportsListProps) => {
                         <h4 className="font-medium mb-1">{report.description.slice(0, 100)}...</h4>
                         <p className="text-sm text-gray-600">{report.url}</p>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onViewReport(report)}
-                        className="ml-4"
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
+                      <div className="flex items-center gap-2 ml-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onViewReport(report)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                        <Button
+                          variant={report.solved ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => onMarkSolved(report.id, !report.solved)}
+                          className={report.solved ? "bg-green-600 hover:bg-green-700" : ""}
+                        >
+                          {report.solved ? (
+                            <>
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Mark Unsolved
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Mark Solved
+                            </>
+                          )}
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Report</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this report? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => onDeleteReport(report.id)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
                   </div>
                 ))}
