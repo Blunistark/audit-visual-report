@@ -1,7 +1,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Canvas as FabricCanvas, Rect, PencilBrush } from 'fabric';
+import { Canvas as FabricCanvas, Rect } from 'fabric';
 import { Square, Pen, Eraser, Download, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -24,6 +24,10 @@ export const AnnotationCanvas = ({ screenshot, onAnnotatedImage }: AnnotationCan
       height: 600,
       backgroundColor: '#ffffff',
     });
+
+    // Initialize the freeDrawingBrush right after canvas creation
+    canvas.freeDrawingBrush.color = '#ef4444';
+    canvas.freeDrawingBrush.width = 3;
 
     setFabricCanvas(canvas);
 
@@ -60,11 +64,9 @@ export const AnnotationCanvas = ({ screenshot, onAnnotatedImage }: AnnotationCan
 
     fabricCanvas.isDrawingMode = activeTool === 'draw';
     
-    if (activeTool === 'draw') {
-      const brush = new PencilBrush(fabricCanvas);
-      brush.color = '#ef4444';
-      brush.width = 3;
-      fabricCanvas.freeDrawingBrush = brush;
+    if (activeTool === 'draw' && fabricCanvas.freeDrawingBrush) {
+      fabricCanvas.freeDrawingBrush.color = '#ef4444';
+      fabricCanvas.freeDrawingBrush.width = 3;
     }
   }, [activeTool, fabricCanvas]);
 
